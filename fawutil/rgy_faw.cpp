@@ -1,4 +1,4 @@
-﻿// -----------------------------------------------------------------------------------------
+// -----------------------------------------------------------------------------------------
 // QSVEnc/NVEnc by rigaya
 // -----------------------------------------------------------------------------------------
 // The MIT License
@@ -30,27 +30,27 @@
 #include "rgy_faw.h"
 
 template<bool upperhalf>
-static uint8_t faw_read_half(uint16_t v) {
+static uint8_t faw_read_half(const uint16_t v) {
     uint8_t i = (upperhalf) ? (v & 0xff00) >> 8 : (v & 0xff);
     return i - 0x80;
 }
 
 template<bool ishalf, bool upperhalf>
-void faw_read(uint8_t *dst, const uint8_t *src, const int outlen) {
+void faw_read(uint8_t *dst, const uint8_t *src, const uint64_t outlen) {
     if (!ishalf) {
         memcpy(dst, src, outlen);
         return;
     }
     const uint16_t *srcPtr = (const uint16_t *)src;
-    for (int i = 0; i < outlen; i++) {
+    for (uint64_t i = 0; i < outlen; i++) {
         dst[i] = faw_read_half<upperhalf>(srcPtr[i]);
     }
 }
 
-static uint32_t faw_checksum_calc(const uint8_t *buf, const int len) {
+static uint32_t faw_checksum_calc(const uint8_t *buf, const uint64_t len) {
     uint32_t _v4288 = 0;
     uint32_t _v48 = 0;
-    for (int i = 0; i < len; i += 2) {
+    for (uint64_t i = 0; i < len; i += 2) {
         uint32_t _v132 = *(uint16_t *)(buf + i);
         _v4288 += _v132;
         _v48 ^= _v132;
@@ -348,7 +348,7 @@ int RGYFAWDecoder::decodeBlock(std::vector<uint8_t>& output, RGYFAWBitstream& in
     posFin += posStart + fawstart1.size(); // データの先頭からの位置に変更
 
     // pos_start から pos_fin までの間に、別のfawstart1がないか探索する
-    while (posStart + fawstart1.size() < posFin) {
+    while (posStart + (int64_t)fawstart1.size() < posFin) {
         auto ret = memmem_c(input.data() + posStart + fawstart1.size(), posFin - posStart - fawstart1.size(), fawstart1.data(), fawstart1.size());
         if (ret < 0) {
             break;
@@ -371,13 +371,13 @@ int RGYFAWDecoder::decodeBlock(std::vector<uint8_t>& output, RGYFAWBitstream& in
     //fprintf(stderr, "Found block: %lld\n", posStartSample);
 
     // 出力が先行していたらdrop
-    if (posStartSample + (AAC_BLOCK_SAMPLES / 2) < input.outputSamples()) {
+    if (posStartSample + (AAC_BLOCK_SAMPLES / 2) < (int64_t)input.outputSamples()) {
         input.addOffset(posFin + fawfin1.size());
         return 1;
     }
 
     // 時刻ずれを無音データで補正
-    while (input.outputSamples() + (AAC_BLOCK_SAMPLES/2) < posStartSample) {
+    while ((int64_t)input.outputSamples() + (AAC_BLOCK_SAMPLES/2) < posStartSample) {
         //fprintf(stderr, "Insert silence: %lld: %lld -> %lld\n", posStartSample, input.outputSamples(), input.outputSamples() + AAC_BLOCK_SAMPLES);
         addSilent(output, input);
     }

@@ -78,5 +78,5 @@ uint32_t RGYWAVHeader::parseHeader(const uint8_t *data) {
     data_size = read_u32(data_ptr);
     data_ptr += 4;
 
-    return data_ptr - data;
+    return (uint32_t)(data_ptr - data);
 }
