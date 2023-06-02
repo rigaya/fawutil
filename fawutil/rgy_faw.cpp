@@ -76,38 +76,45 @@ static inline int64_t memmem_c(const void *data_, const int64_t data_size, const
 }
 
 int RGYAACHeader::sampleRateIdxToRate(const uint32_t idx) {
-    switch (idx) {
-    case 0x00: return 96000;
-    case 0x01: return 88200;
-    case 0x02: return 64000;
-    case 0x03: return 48000;
-    case 0x04: return 44100;
-    case 0x05: return 32000;
-    case 0x06: return 24000;
-    case 0x07: return 22050;
-    case 0x08: return 16000;
-    case 0x09: return 12000;
-    case 0x0A: return 11025;
-    case 0x0B: return 8000;
-    case 0x0C: return 7350;
-    default: return 0;
-    }
+    static const int samplerateList[] = {
+        96000,
+        88200,
+        64000,
+        48000,
+        44100,
+        32000,
+        24000,
+        22050,
+        16000,
+        12000,
+        11025,
+        8000,
+        7350,
+        0
+    };
+    return samplerateList[std::min<uint32_t>(idx, _countof(samplerateList)-1)];
 }
 
 void RGYAACHeader::parse(const uint8_t *buf) {
-    id              = (buf[1] & 0x08) != 0;
-    protection      = (buf[1] & 0x01) != 0;
-    profile         = (buf[2] & 0xC0) >> 6;
-    samplerate      = sampleRateIdxToRate((buf[2] & 0x3C) >> 2);
-    private_bit     = (buf[2] & 0x02) >> 1;
-    channel         = ((buf[2] & 0x01) << 2) | ((buf[3] & 0xC0) >> 6);
-    original        = (buf[3] & 0x20) != 0;
-    home            = (buf[3] & 0x10) != 0;
-    copyright       = (buf[3] & 0x08) != 0;
-    copyright_start = (buf[3] & 0x04) != 0;
-    aac_frame_length     = ((buf[3] & 0x03) << 11) | (buf[4] << 3) | (buf[5] >> 5);
-    adts_buffer_fullness = ((buf[5] & 0x1f) << 6) | (buf[6] >> 2);
-    no_raw_data_blocks_in_frame = buf[6] & 0x03;
+    const uint8_t buf1 = buf[1];
+    const uint8_t buf2 = buf[2];
+    const uint8_t buf3 = buf[3];
+    const uint8_t buf4 = buf[4];
+    const uint8_t buf5 = buf[5];
+    const uint8_t buf6 = buf[6];
+    id              = (buf1 & 0x08) != 0;
+    protection      = (buf1 & 0x01) != 0;
+    profile         = (buf2 & 0xC0) >> 6;
+    samplerate      = sampleRateIdxToRate((buf2 & 0x3C) >> 2);
+    private_bit     = (buf2 & 0x02) >> 1;
+    channel         = ((buf2 & 0x01) << 2) | ((buf3 & 0xC0) >> 6);
+    original        = (buf3 & 0x20) != 0;
+    home            = (buf3 & 0x10) != 0;
+    copyright       = (buf3 & 0x08) != 0;
+    copyright_start = (buf3 & 0x04) != 0;
+    aac_frame_length     = ((buf3 & 0x03) << 11) | (buf4 << 3) | (buf5 >> 5);
+    adts_buffer_fullness = ((buf5 & 0x1f) << 6) | (buf6 >> 2);
+    no_raw_data_blocks_in_frame = buf6 & 0x03;
 }
 
 RGYFAWBitstream::RGYFAWBitstream() :
