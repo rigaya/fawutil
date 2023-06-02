@@ -27,6 +27,8 @@
 #define RGY_MEMMEM_AVX512
 #include "rgy_faw.h"
 
+#if defined(_M_X64) || defined(__x86_64)
 int64_t rgy_memmem_fawstart1_avx512bw(const void *data_, const int64_t data_size) {
     return rgy_memmem_avx512_imp(data_, data_size, fawstart1.data(), fawstart1.size());
 }
+#endif

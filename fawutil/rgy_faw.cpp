@@ -167,7 +167,7 @@ void RGYFAWBitstream::addOutputSamples(uint64_t samples) {
 
 void RGYFAWBitstream::append(const uint8_t *input, const uint64_t inputLength) {
     if (buffer.size() < bufferLength + inputLength) {
-        buffer.resize(std::max(bufferLength + inputLength, buffer.size() * 2));
+        buffer.resize(std::max<size_t>(bufferLength + inputLength, buffer.size() * 2));
         if (bufferLength == 0) {
             bufferOffset = 0;
         }
