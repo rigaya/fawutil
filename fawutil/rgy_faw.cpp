@@ -1,4 +1,4 @@
-// -----------------------------------------------------------------------------------------
+﻿// -----------------------------------------------------------------------------------------
 // QSVEnc/NVEnc by rigaya
 // -----------------------------------------------------------------------------------------
 // The MIT License
@@ -28,6 +28,22 @@
 #include <vector>
 #include <array>
 #include "rgy_faw.h"
+#include "rgy_simd.h"
+
+int64_t rgy_memmem_fawstart1_c(const void *data_, const int64_t data_size) {
+    return rgy_memmem_c(data_, data_size, fawstart1.data(), fawstart1.size());
+}
+
+decltype(rgy_memmem_fawstart1_c)* get_memmem_fawstart1_func() {
+#if defined(_M_IX86) || defined(_M_X64) || defined(__x86_64)
+    const auto simd = get_availableSIMD();
+#if defined(_M_X64) || defined(__x86_64)
+    if ((simd & RGY_SIMD::AVX512BW) == RGY_SIMD::AVX512BW) return rgy_memmem_fawstart1_avx512bw;
+#endif
+    if ((simd & RGY_SIMD::AVX2) == RGY_SIMD::AVX2) return rgy_memmem_fawstart1_avx2;
+#endif
+    return rgy_memmem_fawstart1_c;
+}
 
 template<bool upperhalf>
 static uint8_t faw_read_half(const uint16_t v) {
@@ -63,16 +79,6 @@ static uint32_t faw_checksum_read(const uint8_t *buf) {
     uint32_t v;
     memcpy(&v, buf, sizeof(v));
     return v;
-}
-
-static inline int64_t memmem_c(const void *data_, const int64_t data_size, const void *target_, const int64_t target_size) {
-    const uint8_t *data = (const uint8_t *)data_;
-    for (int64_t i = 0; i <= data_size - target_size; i++) {
-        if (memcmp(data + i, target_, target_size) == 0) {
-            return i;
-        }
-    }
-    return -1;
 }
 
 int RGYAACHeader::sampleRateIdxToRate(const uint32_t idx) {
@@ -202,23 +208,6 @@ void RGYFAWBitstream::clear() {
     outSamples = 0;
 }
 
-static const std::array<uint8_t, 8> fawstart1  = {
-    0x72, 0xF8, 0x1F, 0x4E, 0x07, 0x01, 0x00, 0x00
-};
-static const std::array<uint8_t, 16> fawstart2 = {
-    0x00, 0xF2, 0x00, 0x78, 0x00, 0x9F, 0x00, 0xCE,
-    0x00, 0x87, 0x00, 0x81, 0x00, 0x80, 0x00, 0x80
-};
-static const std::array<uint8_t, 12> fawfin1 = {
-    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-    0x45, 0x4E, 0x44, 0x00
-};
-static const std::array<uint8_t, 24> fawfin2 = {
-    0x00, 0x80, 0x00, 0x80, 0x00, 0x80, 0x00, 0x80,
-    0x00, 0x80, 0x00, 0x80, 0x00, 0x80, 0x00, 0x80,
-    0x00, 0xC5, 0x00, 0xCE, 0x00, 0xC4, 0x00, 0x80
-};
-
 static const std::array<uint8_t, 16> aac_silent0 = {
     0xFF, 0xF9, 0x4C, 0x00, 0x02, 0x1F, 0xFC, 0x21,
     0x00, 0x49, 0x90, 0x02, 0x19, 0x00, 0x23, 0x80
@@ -244,7 +233,9 @@ RGYFAWDecoder::RGYFAWDecoder() :
     fawmode(RGYFAWMode::Unknown),
     bufferIn(),
     bufferHalf0(),
-    bufferHalf1() {
+    bufferHalf1(),
+    funcMemMem(get_memmem_func()),
+    funcMemMemFAWStart1(get_memmem_fawstart1_func()) {
 }
 RGYFAWDecoder::~RGYFAWDecoder() {
 
@@ -283,17 +274,17 @@ int RGYFAWDecoder::decode(RGYFAWDecoderOutput& output, const uint8_t *input, con
         inputDataAppended = true;
 
         int64_t ret0 = 0, ret1 = 0;
-        if ((ret0 = memmem_c(bufferIn.data(), bufferIn.size(), fawstart1.data(), fawstart1.size())) >= 0) {
+        if ((ret0 = funcMemMemFAWStart1(bufferIn.data(), bufferIn.size())) >= 0) {
             fawmode = RGYFAWMode::Full;
-        } else if ((ret0 = memmem_c(bufferIn.data(), bufferIn.size(), fawstart2.data(), fawstart2.size())) >= 0) {
+        } else if ((ret0 = funcMemMem(bufferIn.data(), bufferIn.size(), fawstart2.data(), fawstart2.size())) >= 0) {
             fawmode = RGYFAWMode::Half;
             bufferHalf0.appendFAWHalf(false, bufferIn.data(), bufferIn.size());
             bufferIn.clear();
         } else {
             bufferHalf0.appendFAWHalf(false, bufferIn.data(), bufferIn.size());
             bufferHalf1.appendFAWHalf(true,  bufferIn.data(), bufferIn.size());
-            if (   (ret0 = memmem_c(bufferHalf0.data(), bufferHalf0.size(), fawstart1.data(), fawstart1.size())) >= 0
-                && (ret1 = memmem_c(bufferHalf1.data(), bufferHalf1.size(), fawstart1.data(), fawstart1.size())) >= 0) {
+            if (   (ret0 = funcMemMemFAWStart1(bufferHalf0.data(), bufferHalf0.size())) >= 0
+                && (ret1 = funcMemMemFAWStart1(bufferHalf1.data(), bufferHalf1.size())) >= 0) {
                 fawmode = RGYFAWMode::Mix;
                 bufferIn.clear();
             } else {
@@ -342,13 +333,13 @@ int RGYFAWDecoder::decode(std::vector<uint8_t>& output, RGYFAWBitstream& input) 
 }
 
 int RGYFAWDecoder::decodeBlock(std::vector<uint8_t>& output, RGYFAWBitstream& input) {
-    int64_t posStart = memmem_c(input.data(), input.size(), fawstart1.data(), fawstart1.size());
+    int64_t posStart = funcMemMemFAWStart1(input.data(), input.size());
     if (posStart < 0) {
         return 0;
     }
     input.parseAACHeader(input.data() + posStart + fawstart1.size());
 
-    int64_t posFin = memmem_c(input.data() + posStart + fawstart1.size(), input.size() - posStart - fawstart1.size(), fawfin1.data(), fawfin1.size());
+    int64_t posFin = funcMemMem(input.data() + posStart + fawstart1.size(), input.size() - posStart - fawstart1.size(), fawfin1.data(), fawfin1.size());
     if (posFin < 0) {
         return 0;
     }
@@ -356,7 +347,7 @@ int RGYFAWDecoder::decodeBlock(std::vector<uint8_t>& output, RGYFAWBitstream& in
 
     // pos_start から pos_fin までの間に、別のfawstart1がないか探索する
     while (posStart + (int64_t)fawstart1.size() < posFin) {
-        auto ret = memmem_c(input.data() + posStart + fawstart1.size(), posFin - posStart - fawstart1.size(), fawstart1.data(), fawstart1.size());
+        auto ret = funcMemMemFAWStart1(input.data() + posStart + fawstart1.size(), posFin - posStart - fawstart1.size());
         if (ret < 0) {
             break;
         }

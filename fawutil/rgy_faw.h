@@ -1,4 +1,4 @@
-// -----------------------------------------------------------------------------------------
+﻿// -----------------------------------------------------------------------------------------
 // QSVEnc/NVEnc by rigaya
 // -----------------------------------------------------------------------------------------
 // The MIT License
@@ -32,6 +32,32 @@
 #include <array>
 #include <vector>
 #include "rgy_wav_parser.h"
+#include "rgy_memmem.h"
+
+static const std::array<uint8_t, 8> fawstart1 = {
+    0x72, 0xF8, 0x1F, 0x4E, 0x07, 0x01, 0x00, 0x00
+};
+static const std::array<uint8_t, 16> fawstart2 = {
+    0x00, 0xF2, 0x00, 0x78, 0x00, 0x9F, 0x00, 0xCE,
+    0x00, 0x87, 0x00, 0x81, 0x00, 0x80, 0x00, 0x80
+};
+static const std::array<uint8_t, 12> fawfin1 = {
+    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+    0x45, 0x4E, 0x44, 0x00
+};
+static const std::array<uint8_t, 24> fawfin2 = {
+    0x00, 0x80, 0x00, 0x80, 0x00, 0x80, 0x00, 0x80,
+    0x00, 0x80, 0x00, 0x80, 0x00, 0x80, 0x00, 0x80,
+    0x00, 0xC5, 0x00, 0xCE, 0x00, 0xC4, 0x00, 0x80
+};
+
+int64_t rgy_memmem_fawstart1_c(const void *data_, const int64_t data_size);
+int64_t rgy_memmem_fawstart1_avx2(const void *data_, const int64_t data_size);
+int64_t rgy_memmem_fawstart1_avx512bw(const void *data_, const int64_t data_size);
+int64_t rgy_memmem_fawfin1_c(const void *data_, const int64_t data_size);
+int64_t rgy_memmem_fawfin1_avx2(const void *data_, const int64_t data_size);
+int64_t rgy_memmem_fawfin1_avx512bw(const void *data_, const int64_t data_size);
+
 
 using RGYFAWDecoderOutput = std::array<std::vector<uint8_t>, 2>;
 
@@ -110,6 +136,9 @@ private:
 
     RGYFAWBitstream bufferHalf0;
     RGYFAWBitstream bufferHalf1;
+
+    decltype(rgy_memmem_c)* funcMemMem;
+    decltype(rgy_memmem_fawstart1_c)* funcMemMemFAWStart1;
 public:
     RGYFAWDecoder();
     ~RGYFAWDecoder();
