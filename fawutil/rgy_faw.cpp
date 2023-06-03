@@ -30,7 +30,7 @@
 #include "rgy_faw.h"
 #include "rgy_simd.h"
 
-int64_t rgy_memmem_fawstart1_c(const void *data_, const int64_t data_size) {
+size_t rgy_memmem_fawstart1_c(const void *data_, const size_t data_size) {
     return rgy_memmem_c(data_, data_size, fawstart1.data(), fawstart1.size());
 }
 
@@ -45,6 +45,40 @@ decltype(rgy_memmem_fawstart1_c)* get_memmem_fawstart1_func() {
     return rgy_memmem_fawstart1_c;
 }
 
+
+//16bit音声 -> 8bit音声
+void convert_audio_16to8(uint8_t *dst, const short *src, const size_t n) {
+    uint8_t *byte = dst;
+    const uint8_t *fin = byte + n;
+    const short *sh = src;
+    while (byte < fin) {
+        *byte = (*sh >> 8) + 128;
+        byte++;
+        sh++;
+    }
+}
+
+void split_audio_16to8x2(uint8_t *dst0, uint8_t *dst1, const short *src, const size_t n) {
+    const short *sh = src;
+    const short *sh_fin = src + n;
+    for (; sh < sh_fin; sh++, dst0++, dst1++) {
+        *dst0 = (*sh >> 8) + 128;
+        *dst1 = (*sh & 0xff) + 128;
+    }
+}
+
+decltype(convert_audio_16to8)* get_convert_audio_16to8_func() {
+    const auto simd = get_availableSIMD();
+    if ((simd & RGY_SIMD::AVX2) == RGY_SIMD::AVX2) return convert_audio_16to8_avx2;
+    return convert_audio_16to8;
+}
+
+decltype(split_audio_16to8x2)* get_split_audio_16to8x2_func() {
+    const auto simd = get_availableSIMD();
+    if ((simd & RGY_SIMD::AVX2) == RGY_SIMD::AVX2) return split_audio_16to8x2_avx2;
+    return split_audio_16to8x2;
+}
+
 template<bool upperhalf>
 static uint8_t faw_read_half(const uint16_t v) {
     uint8_t i = (upperhalf) ? (v & 0xff00) >> 8 : (v & 0xff);
@@ -52,21 +86,21 @@ static uint8_t faw_read_half(const uint16_t v) {
 }
 
 template<bool ishalf, bool upperhalf>
-void faw_read(uint8_t *dst, const uint8_t *src, const uint64_t outlen) {
+void faw_read(uint8_t *dst, const uint8_t *src, const size_t outlen) {
     if (!ishalf) {
         memcpy(dst, src, outlen);
         return;
     }
     const uint16_t *srcPtr = (const uint16_t *)src;
-    for (uint64_t i = 0; i < outlen; i++) {
+    for (size_t i = 0; i < outlen; i++) {
         dst[i] = faw_read_half<upperhalf>(srcPtr[i]);
     }
 }
 
-static uint32_t faw_checksum_calc(const uint8_t *buf, const uint64_t len) {
+static uint32_t faw_checksum_calc(const uint8_t *buf, const size_t len) {
     uint32_t _v4288 = 0;
     uint32_t _v48 = 0;
-    for (uint64_t i = 0; i < len; i += 2) {
+    for (size_t i = 0; i < len; i += 2) {
         uint32_t _v132 = *(uint16_t *)(buf + i);
         _v4288 += _v132;
         _v48 ^= _v132;
@@ -151,7 +185,7 @@ int RGYFAWBitstream::aacFrameSize() const {
     return aacHeader.aac_frame_length;
 }
 
-void RGYFAWBitstream::addOffset(int64_t offset) {
+void RGYFAWBitstream::addOffset(size_t offset) {
     bufferLength -= offset;
     if (bufferLength == 0) {
         bufferOffset = 0;
@@ -160,14 +194,14 @@ void RGYFAWBitstream::addOffset(int64_t offset) {
     }
 }
 
-void RGYFAWBitstream::addOutputSamples(uint64_t samples) {
+void RGYFAWBitstream::addOutputSamples(size_t samples) {
     outSamples += samples;
 }
 
 
-void RGYFAWBitstream::append(const uint8_t *input, const uint64_t inputLength) {
+void RGYFAWBitstream::append(const uint8_t *input, const size_t inputLength) {
     if (buffer.size() < bufferLength + inputLength) {
-        buffer.resize(std::max<size_t>(bufferLength + inputLength, buffer.size() * 2));
+        buffer.resize(std::max(bufferLength + inputLength, buffer.size() * 2));
         if (bufferLength == 0) {
             bufferOffset = 0;
         }
@@ -189,16 +223,6 @@ void RGYFAWBitstream::append(const uint8_t *input, const uint64_t inputLength) {
     }
     bufferLength += inputLength;
     inputSamples += inputLength / bytePerWholeSample;
-}
-
-void RGYFAWBitstream::appendFAWHalf(const bool upper, const uint8_t *input, const uint64_t inputLength) {
-    const auto prevSize = bufferLength;
-    append(nullptr, inputLength);
-    if (upper) {
-        faw_read<true, true>(data() + prevSize, input, inputLength / 2);
-    } else {
-        faw_read<true, false>(data() + prevSize, input, inputLength / 2);
-    }
 }
 
 void RGYFAWBitstream::clear() {
@@ -235,7 +259,9 @@ RGYFAWDecoder::RGYFAWDecoder() :
     bufferHalf0(),
     bufferHalf1(),
     funcMemMem(get_memmem_func()),
-    funcMemMemFAWStart1(get_memmem_fawstart1_func()) {
+    funcMemMemFAWStart1(get_memmem_fawstart1_func()),
+    funcAudio16to8(get_convert_audio_16to8_func()),
+    funcSplitAudio16to8x2(get_split_audio_16to8x2_func()) {
 }
 RGYFAWDecoder::~RGYFAWDecoder() {
 
@@ -261,7 +287,21 @@ int RGYFAWDecoder::init(const RGYWAVHeader *data) {
     return 0;
 }
 
-int RGYFAWDecoder::decode(RGYFAWDecoderOutput& output, const uint8_t *input, const uint64_t inputLength) {
+void RGYFAWDecoder::appendFAWHalf(const uint8_t *data, const size_t dataLength) {
+    const auto prevSize = bufferHalf0.size();
+    bufferHalf0.append(nullptr, dataLength / sizeof(short));
+    funcAudio16to8(bufferHalf0.data() + prevSize, (const short *)data, dataLength / sizeof(short));
+}
+
+void RGYFAWDecoder::appendFAWMix(const uint8_t *data, const size_t dataLength) {
+    const auto prevSize0 = bufferHalf0.size();
+    const auto prevSize1 = bufferHalf1.size();
+    bufferHalf0.append(nullptr, dataLength / sizeof(short));
+    bufferHalf1.append(nullptr, dataLength / sizeof(short));
+    funcSplitAudio16to8x2(bufferHalf0.data() + prevSize0, bufferHalf1.data() + prevSize1, (const short *)data, dataLength / sizeof(short));
+}
+
+int RGYFAWDecoder::decode(RGYFAWDecoderOutput& output, const uint8_t *input, const size_t inputLength) {
     for (auto& b : output) {
         b.clear();
     }
@@ -274,17 +314,16 @@ int RGYFAWDecoder::decode(RGYFAWDecoderOutput& output, const uint8_t *input, con
         inputDataAppended = true;
 
         int64_t ret0 = 0, ret1 = 0;
-        if ((ret0 = funcMemMemFAWStart1(bufferIn.data(), bufferIn.size())) >= 0) {
+        if ((ret0 = funcMemMemFAWStart1(bufferIn.data(), bufferIn.size())) != RGY_MEMMEM_NOT_FOUND) {
             fawmode = RGYFAWMode::Full;
-        } else if ((ret0 = funcMemMem(bufferIn.data(), bufferIn.size(), fawstart2.data(), fawstart2.size())) >= 0) {
+        } else if ((ret0 = funcMemMem(bufferIn.data(), bufferIn.size(), fawstart2.data(), fawstart2.size())) != RGY_MEMMEM_NOT_FOUND) {
             fawmode = RGYFAWMode::Half;
-            bufferHalf0.appendFAWHalf(false, bufferIn.data(), bufferIn.size());
+            appendFAWHalf(bufferIn.data(), bufferIn.size());
             bufferIn.clear();
         } else {
-            bufferHalf0.appendFAWHalf(false, bufferIn.data(), bufferIn.size());
-            bufferHalf1.appendFAWHalf(true,  bufferIn.data(), bufferIn.size());
-            if (   (ret0 = funcMemMemFAWStart1(bufferHalf0.data(), bufferHalf0.size())) >= 0
-                && (ret1 = funcMemMemFAWStart1(bufferHalf1.data(), bufferHalf1.size())) >= 0) {
+            appendFAWMix(bufferIn.data(), bufferIn.size());
+            if (   (ret0 = funcMemMemFAWStart1(bufferHalf0.data(), bufferHalf0.size())) != RGY_MEMMEM_NOT_FOUND
+                && (ret1 = funcMemMemFAWStart1(bufferHalf1.data(), bufferHalf1.size())) != RGY_MEMMEM_NOT_FOUND) {
                 fawmode = RGYFAWMode::Mix;
                 bufferIn.clear();
             } else {
@@ -300,11 +339,10 @@ int RGYFAWDecoder::decode(RGYFAWDecoderOutput& output, const uint8_t *input, con
         if (fawmode == RGYFAWMode::Full) {
             bufferIn.append(input, inputLength);
         } else if (fawmode == RGYFAWMode::Half) {
-            bufferHalf0.appendFAWHalf(false, bufferIn.data(), bufferIn.size());
+            appendFAWHalf(bufferIn.data(), bufferIn.size());
             bufferIn.clear();
         } else if (fawmode == RGYFAWMode::Mix) {
-            bufferHalf0.appendFAWHalf(false, bufferIn.data(), bufferIn.size());
-            bufferHalf1.appendFAWHalf(true, bufferIn.data(),  bufferIn.size());
+            appendFAWMix(bufferIn.data(), bufferIn.size());
             bufferIn.clear();
         }
         inputDataAppended = true;
@@ -333,29 +371,34 @@ int RGYFAWDecoder::decode(std::vector<uint8_t>& output, RGYFAWBitstream& input) 
 }
 
 int RGYFAWDecoder::decodeBlock(std::vector<uint8_t>& output, RGYFAWBitstream& input) {
-    int64_t posStart = funcMemMemFAWStart1(input.data(), input.size());
-    if (posStart < 0) {
+    auto posStart = funcMemMemFAWStart1(input.data(), input.size());
+    if (posStart == RGY_MEMMEM_NOT_FOUND) {
         return 0;
     }
     input.parseAACHeader(input.data() + posStart + fawstart1.size());
 
-    int64_t posFin = funcMemMem(input.data() + posStart + fawstart1.size(), input.size() - posStart - fawstart1.size(), fawfin1.data(), fawfin1.size());
-    if (posFin < 0) {
+    auto posFin = funcMemMem(input.data() + posStart + fawstart1.size(), input.size() - posStart - fawstart1.size(), fawfin1.data(), fawfin1.size());
+    if (posFin == RGY_MEMMEM_NOT_FOUND) {
         return 0;
     }
     posFin += posStart + fawstart1.size(); // データの先頭からの位置に変更
 
     // pos_start から pos_fin までの間に、別のfawstart1がないか探索する
-    while (posStart + (int64_t)fawstart1.size() < posFin) {
+    while (posStart + fawstart1.size() < posFin) {
         auto ret = funcMemMemFAWStart1(input.data() + posStart + fawstart1.size(), posFin - posStart - fawstart1.size());
-        if (ret < 0) {
+        if (ret == RGY_MEMMEM_NOT_FOUND) {
             break;
         }
         posStart += ret + fawstart1.size();
         input.parseAACHeader(input.data() + posStart + fawstart1.size());
     }
 
-    const int64_t blockSize = posFin - posStart - fawstart1.size() - 4 /*checksum*/;
+    if (posStart + fawstart1.size() + 4 >= posFin) {
+        // 無効なブロックなので破棄
+        input.addOffset(posFin + fawfin1.size());
+        return 1;
+    }
+    const size_t blockSize = posFin - posStart - fawstart1.size() - 4 /*checksum*/;
     const uint32_t checksumCalc = faw_checksum_calc(input.data() + posStart + fawstart1.size(), blockSize);
     const uint32_t checksumRead = faw_checksum_read(input.data() + posFin - 4);
     // checksumとフレーム長が一致しない場合、そのデータは破棄
@@ -365,23 +408,23 @@ int RGYFAWDecoder::decodeBlock(std::vector<uint8_t>& output, RGYFAWBitstream& in
     }
 
     // pos_start -> sample start
-    const int64_t posStartSample = input.inputSampleStart() + posStart / input.bytePerSample();
+    const auto posStartSample = input.inputSampleStart() + posStart / input.bytePerSample();
     //fprintf(stderr, "Found block: %lld\n", posStartSample);
 
     // 出力が先行していたらdrop
-    if (posStartSample + (AAC_BLOCK_SAMPLES / 2) < (int64_t)input.outputSamples()) {
+    if (posStartSample + (AAC_BLOCK_SAMPLES / 2) < input.outputSamples()) {
         input.addOffset(posFin + fawfin1.size());
         return 1;
     }
 
     // 時刻ずれを無音データで補正
-    while ((int64_t)input.outputSamples() + (AAC_BLOCK_SAMPLES/2) < posStartSample) {
+    while (input.outputSamples() + (AAC_BLOCK_SAMPLES/2) < posStartSample) {
         //fprintf(stderr, "Insert silence: %lld: %lld -> %lld\n", posStartSample, input.outputSamples(), input.outputSamples() + AAC_BLOCK_SAMPLES);
         addSilent(output, input);
     }
 
     // ブロックを出力に追加
-    const uint64_t orig_size = output.size();
+    const auto orig_size = output.size();
     output.resize(orig_size + blockSize);
     memcpy(output.data() + orig_size, input.data() + posStart + fawstart1.size(), blockSize);
     //fprintf(stderr, "Set block: %lld: %lld -> %lld\n", posStartSample, input.outputSamples(), input.outputSamples() + AAC_BLOCK_SAMPLES);

@@ -51,13 +51,15 @@ static const std::array<uint8_t, 24> fawfin2 = {
     0x00, 0xC5, 0x00, 0xCE, 0x00, 0xC4, 0x00, 0x80
 };
 
-int64_t rgy_memmem_fawstart1_c(const void *data_, const int64_t data_size);
-int64_t rgy_memmem_fawstart1_avx2(const void *data_, const int64_t data_size);
-int64_t rgy_memmem_fawstart1_avx512bw(const void *data_, const int64_t data_size);
-int64_t rgy_memmem_fawfin1_c(const void *data_, const int64_t data_size);
-int64_t rgy_memmem_fawfin1_avx2(const void *data_, const int64_t data_size);
-int64_t rgy_memmem_fawfin1_avx512bw(const void *data_, const int64_t data_size);
+size_t rgy_memmem_fawstart1_c(const void *data_, const size_t data_size);
+size_t rgy_memmem_fawstart1_avx2(const void *data_, const size_t data_size);
+size_t rgy_memmem_fawstart1_avx512bw(const void *data_, const size_t data_size);
 
+void convert_audio_16to8(uint8_t *dst, const short *src, const size_t n);
+void convert_audio_16to8_avx2(uint8_t *dst, const short *src, const size_t n);
+
+void split_audio_16to8x2(uint8_t *dst0, uint8_t *dst1, const short *src, const size_t n);
+void split_audio_16to8x2_avx2(uint8_t *dst0, uint8_t *dst1, const short *src, const size_t n);
 
 using RGYFAWDecoderOutput = std::array<std::vector<uint8_t>, 2>;
 
@@ -92,8 +94,8 @@ struct RGYAACHeader {
 class RGYFAWBitstream {
 private:
     std::vector<uint8_t> buffer;
-    uint64_t bufferOffset;
-    uint64_t bufferLength;
+    size_t bufferOffset;
+    size_t bufferLength;
 
     int bytePerWholeSample; // channels * bits per sample
     uint64_t inputSamples;
@@ -108,17 +110,16 @@ public:
 
     uint8_t *data() { return buffer.data() + bufferOffset; }
     const uint8_t *data() const { return buffer.data() + bufferOffset; }
-    uint64_t size() const { return bufferLength; }
+    size_t size() const { return bufferLength; }
     uint64_t inputSampleStart() const { return inputSamples - bufferLength / bytePerWholeSample; }
     uint64_t inputSampleFin() const { return inputSamples; }
     uint64_t outputSamples() const { return outSamples; }
     int bytePerSample() const { return bytePerWholeSample; }
 
-    void addOffset(int64_t offset);
-    void addOutputSamples(uint64_t samples);
+    void addOffset(size_t offset);
+    void addOutputSamples(size_t samples);
 
-    void append(const uint8_t *input, const uint64_t inputLength);
-    void appendFAWHalf(const bool upper, const uint8_t *input, const uint64_t inputLength);
+    void append(const uint8_t *input, const size_t inputLength);
 
     void clear();
 
@@ -139,6 +140,8 @@ private:
 
     decltype(rgy_memmem_c)* funcMemMem;
     decltype(rgy_memmem_fawstart1_c)* funcMemMemFAWStart1;
+    decltype(convert_audio_16to8)* funcAudio16to8;
+    decltype(split_audio_16to8x2)* funcSplitAudio16to8x2;
 public:
     RGYFAWDecoder();
     ~RGYFAWDecoder();
@@ -146,9 +149,12 @@ public:
     RGYFAWMode mode() const { return fawmode; }
     int init(const uint8_t *data);
     int init(const RGYWAVHeader *data);
-    int decode(RGYFAWDecoderOutput& output, const uint8_t *data, const uint64_t dataLength);
+    int decode(RGYFAWDecoderOutput& output, const uint8_t *data, const size_t dataLength);
     void fin(RGYFAWDecoderOutput& output);
 private:
+    void appendFAWHalf(const uint8_t *data, const size_t dataLength);
+    void appendFAWMix(const uint8_t *data, const size_t dataLength);
+
     void setWavInfo();
     int decode(std::vector<uint8_t>& output, RGYFAWBitstream& input);
     int decodeBlock(std::vector<uint8_t>& output, RGYFAWBitstream& input);

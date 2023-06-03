@@ -29,7 +29,7 @@
 #include "rgy_memmem.h"
 
 #if defined(_M_X64) || defined(__x86_64)
-int64_t rgy_memmem_avx512bw(const void *data_, const int64_t data_size, const void *target_, const int64_t target_size) {
+size_t rgy_memmem_avx512bw(const void *data_, const size_t data_size, const void *target_, const size_t target_size) {
     return rgy_memmem_avx512_imp(data_, data_size, target_, target_size);
 }
 #endif

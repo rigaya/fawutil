@@ -30,14 +30,17 @@
 #include "rgy_simd.h"
 #include "rgy_memmem.h"
 
-int64_t rgy_memmem_c(const void *data_, const int64_t data_size, const void *target_, const int64_t target_size) {
+size_t rgy_memmem_c(const void *data_, const size_t data_size, const void *target_, const size_t target_size) {
     const uint8_t *data = (const uint8_t *)data_;
-    for (int64_t i = 0; i <= data_size - target_size; i++) {
+    if (data_size < target_size) {
+        return RGY_MEMMEM_NOT_FOUND;
+    }
+    for (size_t i = 0; i <= data_size - target_size; i++) {
         if (memcmp(data + i, target_, target_size) == 0) {
             return i;
         }
     }
-    return -1;
+    return RGY_MEMMEM_NOT_FOUND;
 }
 
 decltype(rgy_memmem_c)* get_memmem_func() {
