@@ -32,7 +32,7 @@ size_t rgy_memmem_fawstart1_avx2(const void *data_, const size_t data_size) {
     return rgy_memmem_avx2_imp(data_, data_size, fawstart1.data(), fawstart1.size());
 }
 
-void convert_audio_16to8_avx2(uint8_t *dst, const short *src, const size_t n) {
+void rgy_convert_audio_16to8_avx2(uint8_t *dst, const short *src, const size_t n) {
     uint8_t *byte = dst;
     const short *sh = src;
     uint8_t * const loop_start = (uint8_t *)(((size_t)dst + 31) & ~31);
@@ -67,7 +67,7 @@ void convert_audio_16to8_avx2(uint8_t *dst, const short *src, const size_t n) {
     }
 }
 
-void split_audio_16to8x2_avx2(uint8_t *dst0, uint8_t *dst1, const short *src, const size_t n) {
+void rgy_split_audio_16to8x2_avx2(uint8_t *dst0, uint8_t *dst1, const short *src, const size_t n) {
     const short *sh = src;
     const short *sh_fin = src + (n & ~15);
     __m256i y0, y1, y2, y3;

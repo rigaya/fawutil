@@ -47,7 +47,7 @@ decltype(rgy_memmem_fawstart1_c)* get_memmem_fawstart1_func() {
 
 
 //16bit音声 -> 8bit音声
-void convert_audio_16to8(uint8_t *dst, const short *src, const size_t n) {
+void rgy_convert_audio_16to8(uint8_t *dst, const short *src, const size_t n) {
     uint8_t *byte = dst;
     const uint8_t *fin = byte + n;
     const short *sh = src;
@@ -58,7 +58,7 @@ void convert_audio_16to8(uint8_t *dst, const short *src, const size_t n) {
     }
 }
 
-void split_audio_16to8x2(uint8_t *dst0, uint8_t *dst1, const short *src, const size_t n) {
+void rgy_split_audio_16to8x2(uint8_t *dst0, uint8_t *dst1, const short *src, const size_t n) {
     const short *sh = src;
     const short *sh_fin = src + n;
     for (; sh < sh_fin; sh++, dst0++, dst1++) {
@@ -67,16 +67,16 @@ void split_audio_16to8x2(uint8_t *dst0, uint8_t *dst1, const short *src, const s
     }
 }
 
-decltype(convert_audio_16to8)* get_convert_audio_16to8_func() {
+decltype(rgy_convert_audio_16to8)* get_convert_audio_16to8_func() {
     const auto simd = get_availableSIMD();
-    if ((simd & RGY_SIMD::AVX2) == RGY_SIMD::AVX2) return convert_audio_16to8_avx2;
-    return convert_audio_16to8;
+    if ((simd & RGY_SIMD::AVX2) == RGY_SIMD::AVX2) return rgy_convert_audio_16to8_avx2;
+    return rgy_convert_audio_16to8;
 }
 
-decltype(split_audio_16to8x2)* get_split_audio_16to8x2_func() {
+decltype(rgy_split_audio_16to8x2)* get_split_audio_16to8x2_func() {
     const auto simd = get_availableSIMD();
-    if ((simd & RGY_SIMD::AVX2) == RGY_SIMD::AVX2) return split_audio_16to8x2_avx2;
-    return split_audio_16to8x2;
+    if ((simd & RGY_SIMD::AVX2) == RGY_SIMD::AVX2) return rgy_split_audio_16to8x2_avx2;
+    return rgy_split_audio_16to8x2;
 }
 
 template<bool upperhalf>

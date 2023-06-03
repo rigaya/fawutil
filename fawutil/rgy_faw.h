@@ -55,11 +55,11 @@ size_t rgy_memmem_fawstart1_c(const void *data_, const size_t data_size);
 size_t rgy_memmem_fawstart1_avx2(const void *data_, const size_t data_size);
 size_t rgy_memmem_fawstart1_avx512bw(const void *data_, const size_t data_size);
 
-void convert_audio_16to8(uint8_t *dst, const short *src, const size_t n);
-void convert_audio_16to8_avx2(uint8_t *dst, const short *src, const size_t n);
+void rgy_convert_audio_16to8(uint8_t *dst, const short *src, const size_t n);
+void rgy_convert_audio_16to8_avx2(uint8_t *dst, const short *src, const size_t n);
 
-void split_audio_16to8x2(uint8_t *dst0, uint8_t *dst1, const short *src, const size_t n);
-void split_audio_16to8x2_avx2(uint8_t *dst0, uint8_t *dst1, const short *src, const size_t n);
+void rgy_split_audio_16to8x2(uint8_t *dst0, uint8_t *dst1, const short *src, const size_t n);
+void rgy_split_audio_16to8x2_avx2(uint8_t *dst0, uint8_t *dst1, const short *src, const size_t n);
 
 using RGYFAWDecoderOutput = std::array<std::vector<uint8_t>, 2>;
 
@@ -140,8 +140,8 @@ private:
 
     decltype(rgy_memmem_c)* funcMemMem;
     decltype(rgy_memmem_fawstart1_c)* funcMemMemFAWStart1;
-    decltype(convert_audio_16to8)* funcAudio16to8;
-    decltype(split_audio_16to8x2)* funcSplitAudio16to8x2;
+    decltype(rgy_convert_audio_16to8)* funcAudio16to8;
+    decltype(rgy_split_audio_16to8x2)* funcSplitAudio16to8x2;
 public:
     RGYFAWDecoder();
     ~RGYFAWDecoder();
