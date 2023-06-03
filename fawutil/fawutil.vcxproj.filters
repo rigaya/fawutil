@@ -30,7 +30,7 @@
     <ClCompile Include="rgy_memmem_avx2.cpp">
       <Filter>ソース ファイル</Filter>
     </ClCompile>
-    <ClCompile Include="rgy_memmem_avx512.cpp">
+    <ClCompile Include="rgy_memmem_avx512bw.cpp">
       <Filter>ソース ファイル</Filter>
     </ClCompile>
     <ClCompile Include="rgy_simd.cpp">
@@ -39,7 +39,7 @@
     <ClCompile Include="rgy_faw_avx2.cpp">
       <Filter>ソース ファイル</Filter>
     </ClCompile>
-    <ClCompile Include="rgy_faw_avx512.cpp">
+    <ClCompile Include="rgy_faw_avx512bw.cpp">
       <Filter>ソース ファイル</Filter>
     </ClCompile>
   </ItemGroup>
