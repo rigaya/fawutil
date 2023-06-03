@@ -68,14 +68,18 @@ void rgy_split_audio_16to8x2(uint8_t *dst0, uint8_t *dst1, const short *src, con
 }
 
 decltype(rgy_convert_audio_16to8)* get_convert_audio_16to8_func() {
+#if defined(_M_IX86) || defined(_M_X64) || defined(__x86_64)
     const auto simd = get_availableSIMD();
     if ((simd & RGY_SIMD::AVX2) == RGY_SIMD::AVX2) return rgy_convert_audio_16to8_avx2;
+#endif
     return rgy_convert_audio_16to8;
 }
 
 decltype(rgy_split_audio_16to8x2)* get_split_audio_16to8x2_func() {
+#if defined(_M_IX86) || defined(_M_X64) || defined(__x86_64)
     const auto simd = get_availableSIMD();
     if ((simd & RGY_SIMD::AVX2) == RGY_SIMD::AVX2) return rgy_split_audio_16to8x2_avx2;
+#endif
     return rgy_split_audio_16to8x2;
 }
 

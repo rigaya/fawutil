@@ -28,6 +28,8 @@
 #define RGY_MEMMEM_AVX2
 #include "rgy_faw.h"
 
+#if defined(_M_IX86) || defined(_M_X64) || defined(__x86_64)
+
 size_t rgy_memmem_fawstart1_avx2(const void *data_, const size_t data_size) {
     return rgy_memmem_avx2_imp(data_, data_size, fawstart1.data(), fawstart1.size());
 }
@@ -93,3 +95,4 @@ void rgy_split_audio_16to8x2_avx2(uint8_t *dst0, uint8_t *dst1, const short *src
         *dst1 = (*sh & 0xff) + 128;
     }
 }
+#endif
