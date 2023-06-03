@@ -1,4 +1,4 @@
-// -----------------------------------------------------------------------------------------
+﻿// -----------------------------------------------------------------------------------------
 // QSVEnc/NVEnc by rigaya
 // -----------------------------------------------------------------------------------------
 // The MIT License
@@ -339,11 +339,9 @@ int RGYFAWDecoder::decode(RGYFAWDecoderOutput& output, const uint8_t *input, con
         if (fawmode == RGYFAWMode::Full) {
             bufferIn.append(input, inputLength);
         } else if (fawmode == RGYFAWMode::Half) {
-            appendFAWHalf(bufferIn.data(), bufferIn.size());
-            bufferIn.clear();
+            appendFAWHalf(input, inputLength);
         } else if (fawmode == RGYFAWMode::Mix) {
-            appendFAWMix(bufferIn.data(), bufferIn.size());
-            bufferIn.clear();
+            appendFAWMix(input, inputLength);
         }
         inputDataAppended = true;
     }
