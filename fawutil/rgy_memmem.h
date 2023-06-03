@@ -37,7 +37,7 @@ size_t rgy_memmem_c(const void *data_, const size_t data_size, const void *targe
 size_t rgy_memmem_avx2(const void *data_, const size_t data_size, const void *target_, const size_t target_size);
 size_t rgy_memmem_avx512bw(const void *data_, const size_t data_size, const void *target_, const size_t target_size);
 
-static const auto RGY_MEMMEM_NOT_FOUND = std::numeric_limits<decltype(rgy_memmem_c(nullptr,0,nullptr,0))>::max();
+static const auto RGY_MEMMEM_NOT_FOUND = std::numeric_limits<decltype(rgy_memmem_c(nullptr, 0, nullptr, 0))>::max();
 
 decltype(rgy_memmem_c)* get_memmem_func();
 
@@ -97,7 +97,7 @@ static RGY_FORCEINLINE size_t rgy_memmem_avx2_imp(const void *data_, const size_
     const uint8_t *target = (const uint8_t *)target_;
     const __m256i target_first = _mm256_set1_epi8(target[0]);
     const __m256i target_last = _mm256_set1_epi8(target[target_size - 1]);
-    const int64_t fin64 = data_size - target_size + 1 - 32; // r1の32byteロードが安全に行える限界
+    const int64_t fin64 = (int64_t)data_size - (int64_t)target_size + 1 - 32; // r1の32byteロードが安全に行える限界
     size_t i = 0;
     if (fin64 > 0) {
         const size_t fin = (size_t)fin64;
@@ -177,7 +177,7 @@ static RGY_FORCEINLINE size_t rgy_memmem_avx512_imp(const void *data_, const siz
     const uint8_t *target = (const uint8_t *)target_;
     const __m512i target_first = _mm512_set1_epi8(target[0]);
     const __m512i target_last = _mm512_set1_epi8(target[target_size - 1]);
-    const int64_t fin64 = data_size - target_size + 1 - 64; // r1の64byteロードが安全に行える限界
+    const int64_t fin64 = (int64_t)data_size - (int64_t)target_size + 1 - 64; // r1の64byteロードが安全に行える限界
     size_t i = 0;
     if (fin64 > 0) {
         const size_t fin = (size_t)fin64;
