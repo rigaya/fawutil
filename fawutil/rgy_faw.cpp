@@ -1,4 +1,4 @@
-﻿// -----------------------------------------------------------------------------------------
+// -----------------------------------------------------------------------------------------
 // QSVEnc/NVEnc by rigaya
 // -----------------------------------------------------------------------------------------
 // The MIT License
@@ -174,8 +174,8 @@ void RGYFAWBitstream::setBytePerSample(const int val) {
     bytePerWholeSample = val;
 }
 
-void RGYFAWBitstream::parseAACHeader(const uint8_t *buffer) {
-    aacHeader.parse(buffer);
+void RGYFAWBitstream::parseAACHeader(const uint8_t *buf) {
+    aacHeader.parse(buf);
 }
 
 int RGYFAWBitstream::aacChannels() const {
