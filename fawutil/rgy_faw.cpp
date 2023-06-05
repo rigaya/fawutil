@@ -617,5 +617,9 @@ int RGYFAWEncoder::fin(std::vector<uint8_t>& output) {
         const auto offsetBytes = -1 * delaySamples * bufferTmp.bytePerSample();
         output.resize(output.size() + offsetBytes, 0);
     }
+    //最終出力は4byte少ない (先頭に4byte入れたためと思われる)
+    if (output.size() > 4) {
+        output.resize(output.size() - 4);
+    }
     return ret;
 }
