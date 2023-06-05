@@ -55,6 +55,10 @@ size_t rgy_memmem_fawstart1_c(const void *data_, const size_t data_size);
 size_t rgy_memmem_fawstart1_avx2(const void *data_, const size_t data_size);
 size_t rgy_memmem_fawstart1_avx512bw(const void *data_, const size_t data_size);
 
+size_t rgy_find_aacsync_c(const void *data_, const size_t data_size);
+size_t rgy_find_aacsync_avx2(const void *data_, const size_t data_size);
+size_t rgy_find_aacsync_avx512bw(const void *data_, const size_t data_size);
+
 void rgy_convert_audio_16to8(uint8_t *dst, const short *src, const size_t n);
 void rgy_convert_audio_16to8_avx2(uint8_t *dst, const short *src, const size_t n);
 
@@ -70,6 +74,7 @@ enum class RGYFAWMode {
     Mix
 };
 
+static const int AAC_HEADER_MIN_SIZE = 7;
 static const uint32_t AAC_BLOCK_SAMPLES = 1024;
 
 struct RGYAACHeader {
@@ -98,7 +103,7 @@ private:
     size_t bufferLength;
 
     int bytePerWholeSample; // channels * bits per sample
-    uint64_t inputSamples;
+    uint64_t inputLengthByte;
     uint64_t outSamples;
 
     RGYAACHeader aacHeader;
@@ -111,8 +116,9 @@ public:
     uint8_t *data() { return buffer.data() + bufferOffset; }
     const uint8_t *data() const { return buffer.data() + bufferOffset; }
     size_t size() const { return bufferLength; }
-    uint64_t inputSampleStart() const { return inputSamples - bufferLength / bytePerWholeSample; }
-    uint64_t inputSampleFin() const { return inputSamples; }
+    uint64_t inputLength() const { return inputLengthByte; }
+    uint64_t inputSampleStart() const { return (inputLengthByte - bufferLength) / bytePerWholeSample; }
+    uint64_t inputSampleFin() const { return inputLengthByte / bytePerWholeSample; }
     uint64_t outputSamples() const { return outSamples; }
     int bytePerSample() const { return bytePerWholeSample; }
 
@@ -160,6 +166,28 @@ private:
     int decodeBlock(std::vector<uint8_t>& output, RGYFAWBitstream& input);
     void addSilent(std::vector<uint8_t>& output, RGYFAWBitstream& input);
     void fin(std::vector<uint8_t>& output, RGYFAWBitstream& input);
+};
+
+class RGYFAWEncoder {
+private:
+    RGYWAVHeader wavheader;
+    RGYFAWMode fawmode;
+    int delaySamples;
+
+    int64_t inputAACPosByte;
+    int64_t outputFAWPosByte;
+    RGYFAWBitstream bufferIn;
+    RGYFAWBitstream bufferTmp;
+public:
+    RGYFAWEncoder();
+    ~RGYFAWEncoder();
+
+    int init(const RGYWAVHeader *data, const RGYFAWMode mode, const int delayMillisec);
+    int encode(std::vector<uint8_t>& output, const uint8_t *data, const size_t dataLength);
+    int fin(std::vector<uint8_t>& output);
+private:
+    int encode(std::vector<uint8_t>& output);
+    void encodeBlock(const uint8_t *data, const size_t dataLength);
 };
 
 #endif //__RGY_FAW_H__
