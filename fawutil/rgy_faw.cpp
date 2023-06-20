@@ -1,4 +1,4 @@
-// -----------------------------------------------------------------------------------------
+﻿// -----------------------------------------------------------------------------------------
 // QSVEnc/NVEnc by rigaya
 // -----------------------------------------------------------------------------------------
 // The MIT License
@@ -206,7 +206,11 @@ uint32_t RGYFAWBitstream::aacFrameSize() const {
 }
 
 void RGYFAWBitstream::addOffset(size_t offset) {
-    bufferLength -= offset;
+    if (bufferLength < offset) {
+        bufferLength = 0;
+    } else {
+        bufferLength -= offset;
+    }
     if (bufferLength == 0) {
         bufferOffset = 0;
     } else {
@@ -560,8 +564,8 @@ int RGYFAWEncoder::encode(std::vector<uint8_t>& output) {
             if (outputFAWPosByte < inputAACPosByte) {
                 const auto offsetBytes = inputAACPosByte - outputFAWPosByte;
                 const auto origSize = bufferTmp.size();
-                bufferTmp.append(nullptr, offsetBytes);
-                memset(bufferTmp.data() + origSize, 0, offsetBytes);
+                bufferTmp.append(nullptr, (size_t)offsetBytes);
+                memset(bufferTmp.data() + origSize, 0, (size_t)offsetBytes);
                 outputFAWPosByte = inputAACPosByte;
             }
             // outputWavPosSample == inputAACPosSample
@@ -610,7 +614,7 @@ int RGYFAWEncoder::fin(std::vector<uint8_t>& output) {
     if (outputFAWPosByte < inputAACPosByte) {
         // 残りのbyteを0で調整
         const auto offsetBytes = inputAACPosByte - outputFAWPosByte;
-        output.resize(output.size() + offsetBytes, 0);
+        output.resize(output.size() + (size_t)offsetBytes, 0);
     }
     if (delaySamples < 0) {
         // 負のdelayの場合、wavの長さを合わせるために0で埋める
