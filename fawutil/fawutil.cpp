@@ -1,4 +1,4 @@
-// -----------------------------------------------------------------------------------------
+﻿// -----------------------------------------------------------------------------------------
 // QSVEnc/NVEnc by rigaya
 // -----------------------------------------------------------------------------------------
 // The MIT License
@@ -175,7 +175,7 @@ static int run(const int mode, const RGYFAWMode fawmode, const int delay, const 
         write_buffer(&fp_out[0], output[0], writeBytesTotal[0], out_buffer.data(), out_buffer.size());
 
         // wavヘッダの上書き
-        wavheader.data_size = writeBytesTotal[0] - WAVE_HEADER_SIZE;
+        wavheader.data_size = (decltype(wavheader.data_size))std::min<uint64_t>(writeBytesTotal[0] - WAVE_HEADER_SIZE, std::numeric_limits<decltype(wavheader.data_size)>::max());
         std::vector<uint8_t> wavheaderBytes = wavheader.createHeader();
         _fseeki64(fp_out[0], 0, SEEK_SET);
         fwrite(wavheaderBytes.data(), 1, wavheaderBytes.size(), fp_out[0]);

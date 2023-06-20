@@ -55,10 +55,6 @@ size_t rgy_memmem_fawstart1_c(const void *data_, const size_t data_size);
 size_t rgy_memmem_fawstart1_avx2(const void *data_, const size_t data_size);
 size_t rgy_memmem_fawstart1_avx512bw(const void *data_, const size_t data_size);
 
-size_t rgy_find_aacsync_c(const void *data_, const size_t data_size);
-size_t rgy_find_aacsync_avx2(const void *data_, const size_t data_size);
-size_t rgy_find_aacsync_avx512bw(const void *data_, const size_t data_size);
-
 void rgy_convert_audio_16to8(uint8_t *dst, const short *src, const size_t n);
 void rgy_convert_audio_16to8_avx2(uint8_t *dst, const short *src, const size_t n);
 
@@ -83,12 +79,12 @@ struct RGYAACHeader {
     int profile;     // 00 ... main, 01 ... lc, 10 ... ssr
     int samplerate;
     bool private_bit;
-    int channel;
+    uint32_t channel;
     bool original;
     bool home;
     bool copyright;
     bool copyright_start;
-    int aac_frame_length; // AACヘッダを含む
+    uint32_t aac_frame_length; // AACヘッダを含む
     int adts_buffer_fullness;
     int no_raw_data_blocks_in_frame;
 
@@ -130,8 +126,8 @@ public:
     void clear();
 
     void parseAACHeader(const uint8_t *buffer);
-    int aacChannels() const;
-    int aacFrameSize() const;
+    uint32_t aacChannels() const;
+    uint32_t aacFrameSize() const;
 };
 
 class RGYFAWDecoder {

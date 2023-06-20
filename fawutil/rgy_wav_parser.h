@@ -31,7 +31,7 @@
 #include <cstdint>
 #include <vector>
 
-static const int WAVE_HEADER_SIZE = 44;
+static const uint32_t WAVE_HEADER_SIZE = 44;
 
 struct RGYWAVHeader {
     char file_id[5]; // "RIFF"

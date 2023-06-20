@@ -1,4 +1,4 @@
-﻿// -----------------------------------------------------------------------------------------
+// -----------------------------------------------------------------------------------------
 // QSVEnc/NVEnc by rigaya
 // -----------------------------------------------------------------------------------------
 // The MIT License
@@ -198,10 +198,10 @@ void RGYFAWBitstream::parseAACHeader(const uint8_t *buf) {
     aacHeader.parse(buf);
 }
 
-int RGYFAWBitstream::aacChannels() const {
+uint32_t RGYFAWBitstream::aacChannels() const {
     return aacHeader.channel;
 }
-int RGYFAWBitstream::aacFrameSize() const {
+uint32_t RGYFAWBitstream::aacFrameSize() const {
     return aacHeader.aac_frame_length;
 }
 
