@@ -1,4 +1,4 @@
-﻿// -----------------------------------------------------------------------------------------
+// -----------------------------------------------------------------------------------------
 // QSVEnc/NVEnc by rigaya
 // -----------------------------------------------------------------------------------------
 // The MIT License
@@ -32,6 +32,9 @@
 #include "rgy_tchar.h"
 #include "rgy_faw.h"
 #include "fawutil_version.h"
+#if defined(_WIN32) || defined(_WIN64)
+#include <shellapi.h>
+#endif
 
 enum {
     FAW_ENC,
@@ -194,7 +197,19 @@ static int run(const int mode, const RGYFAWMode fawmode, const int delay, const 
     return 0;
 }
 
+#if defined(_WIN32) || defined(_WIN64)
+static bool check_locale_is_ja() {
+    const WORD LangID_ja_JP = MAKELANGID(LANG_JAPANESE, SUBLANG_JAPANESE_JAPAN);
+    return GetUserDefaultLangID() == LangID_ja_JP;
+}
+#endif //#if defined(_WIN32) || defined(_WIN64)
+
 int _tmain(int argc, const TCHAR **argv) {
+#if defined(_WIN32) || defined(_WIN64)
+    if (check_locale_is_ja()) {
+        _tsetlocale(LC_ALL, _T("Japanese"));
+    }
+#endif //#if defined(_WIN32) || defined(_WIN64)
     if (argc <= 1) {
         print_help();
         return 0;
