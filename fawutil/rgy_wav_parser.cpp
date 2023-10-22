@@ -37,6 +37,19 @@ static inline uint16_t read_u16(const uint8_t* data) {
     return data[0] | (data[1] << 8);
 }
 
+void RGYWAVHeader::init(const int channels, const int samplerate, const int elemsize, const uint32_t datasize) {
+    const int wav_sample_size = channels * elemsize;
+    file_size = 0;
+    subchunk_size = 16;
+    audio_format = 1;
+    number_of_channels = channels;
+    sample_rate = samplerate;
+    byte_rate = samplerate * channels * elemsize;
+    block_align = wav_sample_size;
+    bits_per_sample = elemsize * 8;
+    data_size = datasize;
+}
+
 uint32_t RGYWAVHeader::parseHeader(const uint8_t *data) {
     const uint8_t *data_ptr = data;
 

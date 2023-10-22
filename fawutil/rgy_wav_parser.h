@@ -48,6 +48,7 @@ struct RGYWAVHeader {
     char data_id[5]; //"data"
     uint32_t data_size; // samples * number of channels * bits per sample / 8 (Actual number of bytes)
 
+    void init(const int channels, const int samplerate, const int elemsize, const uint32_t datasize);
     uint32_t parseHeader(const uint8_t *data);
     std::vector<uint8_t> createHeader();
 };
