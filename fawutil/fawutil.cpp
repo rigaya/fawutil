@@ -83,7 +83,7 @@ static size_t write_buffer(std::unique_ptr<FILE, decltype(&fclose)>& fp, const t
         if (!fp) {
             fp = open_file(filename, false);
         }
-        auto written = fwrite(buf, 1, bufSize, fp.get());
+        auto written = _fwrite_nolock(buf, 1, bufSize, fp.get());
         writeBytesTotal += written;
         return written;
     }
@@ -118,7 +118,7 @@ static int run_decode(const RGYFAWMode fawmode, const tstring& input, const std:
     const bool use_pipe = is_pipe(input.c_str()) || is_pipe(output[0].c_str()) || is_pipe(output[1].c_str());
 
     std::vector<uint8_t> buffer((use_pipe) ? 8 * 1024 : 64 * 1024 * 1024);
-    size_t readBytes = fread(buffer.data(), 1, buffer.size(), fp_in.get());
+    size_t readBytes = _fread_nolock(buffer.data(), 1, buffer.size(), fp_in.get());
     uint64_t readBytesTotal = readBytes;
     uint64_t writeBytesTotal[2] = { 0, 0 };
 
@@ -131,7 +131,7 @@ static int run_decode(const RGYFAWMode fawmode, const tstring& input, const std:
     }
 
     auto prev = std::chrono::system_clock::now();
-    while ((readBytes = fread(buffer.data(), 1, buffer.size(), fp_in.get())) > 0) {
+    while ((readBytes = _fread_nolock(buffer.data(), 1, buffer.size(), fp_in.get())) > 0) {
         readBytesTotal += readBytes;
         auto now = std::chrono::system_clock::now();
         if (std::chrono::duration_cast<std::chrono::milliseconds>(now - prev).count() > 500) {
@@ -231,7 +231,7 @@ static int run_encode(const RGYFAWMode fawmode, const std::array<int, 2>& delay,
         for (;;) {
             bool bothEOF = true;
             for (auto& r : reader) {
-                const size_t readBytes = fread(r.buffer.data(), 1, r.buffer.size(), r.fpin);
+                const size_t readBytes = _fread_nolock(r.buffer.data(), 1, r.buffer.size(), r.fpin);
                 r.readBytesTotal += readBytes;
                 bothEOF &= readBytes == 0;
                 if (readBytes > 0) {
@@ -302,12 +302,12 @@ static int run_encode(const RGYFAWMode fawmode, const std::array<int, 2>& delay,
         write_buffer(fp_out, output, writeBytesTotal, outfawmix.data(), outfawmix.size());
     } else {
         auto& r = reader[0];
-        auto readBytes = fread(r.buffer.data(), 1, r.buffer.size(), r.fpin);
+        auto readBytes = _fread_nolock(r.buffer.data(), 1, r.buffer.size(), r.fpin);
         r.encoder.encode(r.out_buffer, r.buffer.data(), readBytes);
         write_buffer(fp_out, output, writeBytesTotal, r.out_buffer.data(), r.out_buffer.size());
 
         auto prev = std::chrono::system_clock::now();
-        while ((readBytes = fread(r.buffer.data(), 1, r.buffer.size(), r.fpin)) > 0) {
+        while ((readBytes = _fread_nolock(r.buffer.data(), 1, r.buffer.size(), r.fpin)) > 0) {
             r.readBytesTotal += readBytes;
             r.encoder.encode(r.out_buffer, r.buffer.data(), readBytes);
             write_buffer(fp_out, output, writeBytesTotal, r.out_buffer.data(), r.out_buffer.size());
