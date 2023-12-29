@@ -46,7 +46,7 @@ typedef char TCHAR;
 #define _stscanf_s sscanf
 #define _stscanf sscanf
 #define _tcscmp strcmp
-#define _tcsnccmp strncmp
+#define _tcsncmp strncmp
 #define _tcsicmp strcasecmp
 #define _tcschr strchr
 #define _tcsrchr strrchr

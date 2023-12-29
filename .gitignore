@@ -32,6 +32,12 @@ bld/
 [Oo]ut/
 [Ll]og/
 [Ll]ogs/
+*.o
+rgy_config.h
+rgy_rev.h
+fawutil
+config.mak
+.depend
 
 # Visual Studio 2015/2017 cache/options directory
 .vs/
