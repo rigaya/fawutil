@@ -1,13 +1,14 @@
 #!/bin/sh
 
-PACKAGE_NAME=tsreplace
-PACKAGE_BIN=tsreplace
+PACKAGE_NAME=fawutil
+PACKAGE_BIN=fawutil
 PACKAGE_MAINTAINER=rigaya
 PACKAGE_DESCRIPTION=
 PACKAGE_ROOT=.debpkg
 PACKAGE_VERSION=`git describe --tags | cut -f 1 --delim="-"`
 PACKAGE_ARCH=`uname -m`
 PACKAGE_ARCH=`echo ${PACKAGE_ARCH} | sed -e 's/x86_64/amd64/g'`
+PACKAGE_ARCH=`echo ${PACKAGE_ARCH} | sed -e 's/aarch64/arm64/g'`
 
 if [ -e /etc/lsb-release ]; then
     PACKAGE_OS_ID=`cat /etc/lsb-release | grep DISTRIB_ID | cut -f 2 --delim="="`
@@ -16,7 +17,6 @@ if [ -e /etc/lsb-release ]; then
     PACKAGE_OS="_${PACKAGE_OS_ID}${PACKAGE_OS_VER}"
     if [ "${PACKAGE_OS_CODENAME}" = "focal" ] || [ "${PACKAGE_OS_CODENAME}" = "jammy" ]; then
         PACKAGE_DEPENDS="libc6(>=2.29),libstdc++6(>=6)"
-        PACKAGE_DEPENDS="${PACKAGE_DEPENDS},libavcodec58,libavutil56,libavformat58,libswresample3,libavfilter7,libavdevice58"
     else
         echo "${PACKAGE_OS_ID}${PACKAGE_OS_VER} ${PACKAGE_OS_CODENAME} not supported in this script!"
         exit 1
